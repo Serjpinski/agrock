@@ -1,2 +1,2 @@
-# agrock
-Algorithmically generated rock textures
+# Agrock
+Algorithmically generated rock textures.
