@@ -13,15 +13,13 @@ namespace Agrock {
         private const int PATTERN_LENGTH = 4;
         private const int RECTANGLES = (PATTERN_LENGTH * PATTERN_LENGTH) / 2;
 
-        private const int RECURSION_LIMIT = 1; // Min value = 1; max value = text_len / pat_len
+        private static Size IMAGE_SIZE = new Size(4096, 2304);
+        private static int PIXEL_SIZE = 1;
+        private static int RECURSION = 4;
 
-        private static Size GRID_SIZE = new Size(19, 6);
-        private static int BLOCK_SIZE = 256;
-
-        // Note: MAX_COLOR_DIFF should be around 0.25 and REDUCTION_RATE should be around 4 / COLORS
-        private static int COLORS = 16; // Different base colors in a pattern
-        private static float MAX_COLOR_DIFF = 0.2f; // Maximum variation between base colors of a pattern
-        private static float REDUCTION_RATE = COLORS * 0.2f; // Rate at which color diff reduces in each iteration
+        private static int COLOR_NUMBER = 16; // Different base colors in a pattern
+        private static float COLOR_DIFF = 0.2f; // Maximum variation between base colors of a pattern
+        private static float COLOR_DIFF_RED = COLOR_NUMBER * 0.2f; // Rate at which color diff reduces in each iteration
 
         private static void ParseArgs(string[] args) {
 
@@ -29,26 +27,30 @@ namespace Agrock {
             for (int i = 0; i < args.Length / 2; i++) dict.Add(args[2 * i], args[2 * i + 1]);
 
             if (dict.ContainsKey("-w") && dict.ContainsKey("-h"))
-                GRID_SIZE = new Size(int.Parse(dict["-w"]), int.Parse(dict["-h"]));
+                IMAGE_SIZE = new Size(int.Parse(dict["-w"]), int.Parse(dict["-h"]));
+            if (dict.ContainsKey("-p")) PIXEL_SIZE = int.Parse(dict["-p"]);
+            if (dict.ContainsKey("-r")) RECURSION = int.Parse(dict["-r"]);
 
-            if (dict.ContainsKey("-b")) BLOCK_SIZE = int.Parse(dict["-b"]);
-
-            if (dict.ContainsKey("-c")) COLORS = int.Parse(dict["-c"]);
-            if (dict.ContainsKey("-cd")) MAX_COLOR_DIFF = float.Parse(dict["-cd"]);
-            if (dict.ContainsKey("-r")) REDUCTION_RATE = COLORS * float.Parse(dict["-r"]);
+            if (dict.ContainsKey("-cn")) COLOR_NUMBER = int.Parse(dict["-cn"]);
+            if (dict.ContainsKey("-cd")) COLOR_DIFF = float.Parse(dict["-cd"]);
+            if (dict.ContainsKey("-cdr")) COLOR_DIFF_RED = COLOR_NUMBER * float.Parse(dict["-cdr"]);
         }
 
         public static void Main(string[] args) {
 
             args = new[] {
-                "-w", "16",
-                "-h", "9",
-                "-b", "256",
-                "-c", "16",
+                "-w", "1366",
+                "-h", "786",
+                "-p", "1",
+                "-r", "4",
+                "-cn", "16",
                 "-cd", "0.2",
-                "-r", "0.2"};
+                "-cdr", "0.2"};
 
             ParseArgs(args);
+
+            int blockSize = (int) Math.Pow(PATTERN_LENGTH, RECURSION);
+            Size gridSize = new Size((IMAGE_SIZE.Width - 1) / blockSize + 1, (IMAGE_SIZE.Height - 1) / blockSize + 1);
 
             string filename = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) +
                 "/" + DateTime.Now.Year + "-" + DateTime.Now.Month + "-" + DateTime.Now.Day +
@@ -57,36 +59,39 @@ namespace Agrock {
 
             Random random = new Random();
 
-            Bitmap image = new Bitmap(GRID_SIZE.Width * BLOCK_SIZE, GRID_SIZE.Height * BLOCK_SIZE);
+            Bitmap image = new Bitmap(IMAGE_SIZE.Width, IMAGE_SIZE.Height);
 
             Console.WriteLine("Algorithmically generating rock image");
             Console.WriteLine("Size: " + image.Width + "x" + image.Height + "px");
             Console.WriteLine("File: " + filename);
             Console.WriteLine("Generating: 0%");
 
-            float totalCells = GRID_SIZE.Width * GRID_SIZE.Height;
-            int completedCells = 0;
+            float totalBlocks = gridSize.Width * gridSize.Height;
+            int completedBlocks = 0;
             int lastPercentage = 0;
 
-            for (int i = 0; i < GRID_SIZE.Width; i++) {
+            for (int i = 0; i < gridSize.Width; i++) {
 
-                for (int j = 0; j < GRID_SIZE.Height; j++) {
+                for (int j = 0; j < gridSize.Height; j++) {
 
-                    float[,] cell = GenerateBlock(random, random.Next(NUM_PATTERNS), BLOCK_SIZE);
+                    float[,] block = GenerateBlock(random, random.Next(NUM_PATTERNS), blockSize);
 
-                    for (int ci = 0; ci < BLOCK_SIZE; ci++) {
+                    for (int ci = 0; ci < blockSize; ci++) {
 
-                        for (int cj = 0; cj < BLOCK_SIZE; cj++) {
+                        for (int cj = 0; cj < blockSize; cj++) {
 
-                            int grey = (int) Math.Round(Clamp(cell[ci, cj], 0, 1) * 255);
+                            int grey = (int) Math.Round(Clamp(block[ci, cj], 0, 1) * 255);
 
-                            image.SetPixel(i * BLOCK_SIZE + ci, j * BLOCK_SIZE + cj,
-                                Color.FromArgb(grey, grey, grey));
+                            int pi = i * blockSize + ci;
+                            int pj = j * blockSize + cj;
+
+                            if (pi < IMAGE_SIZE.Width && pj < IMAGE_SIZE.Height)
+                                image.SetPixel(pi, pj, Color.FromArgb(grey, grey, grey));
                         }
                     }
 
-                    completedCells++;
-                    int percentage = (int) (completedCells / totalCells * 100);
+                    completedBlocks++;
+                    int percentage = (int) (completedBlocks / totalBlocks * 100);
 
                     if (percentage != lastPercentage) {
 
@@ -104,7 +109,7 @@ namespace Agrock {
         public static float[,] GenerateBlock(Random rng, int patternIndex, int blockSize) {
 
             float[,] block = new float[blockSize, blockSize];
-            FillSquare(rng, block, 0, 0, blockSize, 0.5f, MAX_COLOR_DIFF, patternIndex);
+            FillSquare(rng, block, 0, 0, blockSize, 0.5f, COLOR_DIFF, patternIndex);
             return block;
         }
 
@@ -113,7 +118,7 @@ namespace Agrock {
 
             int[,] pattern = Patterns[patternIndex];
             int[] coloring = GenerateColoring(rng); // Gets a random coloring with no restrictions
-            float colorVar = colorDiff / COLORS; // Color variation between two consecutive colors
+            float colorVar = colorDiff / COLOR_NUMBER; // Color variation between two consecutive colors
 
             int cellLength = length / PATTERN_LENGTH;
 
@@ -124,12 +129,12 @@ namespace Agrock {
                     // Gets the base color for this cell
                     float cellBaseColor = baseColor + colorDiff / 2 - colorVar * (0.5f + coloring[pattern[i, j]]);
 
-                    if (cellLength > RECURSION_LIMIT) {
+                    if (cellLength > PIXEL_SIZE) {
 
                         // Fills this cell with a new pattern
                         FillSquare(rng, texture,
                             initX + i * cellLength, initY + j * cellLength, cellLength,
-                            cellBaseColor, colorDiff / REDUCTION_RATE,
+                            cellBaseColor, colorDiff / COLOR_DIFF_RED,
                             rng.Next(NUM_PATTERNS));
                     }
                     else {
@@ -150,7 +155,7 @@ namespace Agrock {
             int[] coloring = new int[RECTANGLES];
 
             for (int i = 0; i < coloring.Length; i++)
-                coloring[i] = rng.Next(COLORS);
+                coloring[i] = rng.Next(COLOR_NUMBER);
 
             return coloring;
         }
