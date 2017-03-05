@@ -6,13 +6,13 @@ using System.Reflection;
 
 namespace Agrock {
 
-    class Agrock {
+    public class Agrock {
 
-        private static readonly int NUM_PATTERNS = 36;
-        private static readonly int PATTERN_LENGTH = 4;
-        private static readonly int RECTANGLES = (PATTERN_LENGTH * PATTERN_LENGTH) / 2;
+        private const int NUM_PATTERNS = 36;
+        private const int PATTERN_LENGTH = 4;
+        private const int RECTANGLES = (PATTERN_LENGTH * PATTERN_LENGTH) / 2;
 
-        private static readonly int RECURSION_LIMIT = 1; // Min value = 1; max value = text_len / pat_len
+        private const int RECURSION_LIMIT = 1; // Min value = 1; max value = text_len / pat_len
 
         // Note: MAX_COLOR_DIFF should be around 0.25 and REDUCTION_RATE should be around 4 / COLORS
         private static int COLORS = 16; // Different base colors in a pattern
@@ -21,9 +21,9 @@ namespace Agrock {
 
         private static bool COLORED = true;
 
-        static void Main(string[] args) {
+        public static void Main(string[] args) {
 
-            args = new string[] {
+            args = new[] {
                 "16", "9", "256",
                 "16", "0.2", "0.2",
                 "true"};
@@ -112,7 +112,7 @@ namespace Agrock {
         private static void FillSquare(Random rng, float[,] texture,
             int initX, int initY, int length, float baseColor, float colorDiff, int patternIndex) {
 
-            int[,] pattern = PATTERNS[patternIndex];
+            int[,] pattern = Patterns[patternIndex];
             int[] coloring = GenerateColoring(rng); // Gets a random coloring with no restrictions
             float colorVar = colorDiff / COLORS; // Color variation between two consecutive colors
 
@@ -172,7 +172,6 @@ namespace Agrock {
                 Convert.ToInt32(b * 255), Convert.ToInt32(b * 255), Convert.ToInt32(b * 255));
 
             float fMax, fMid, fMin;
-            int iSextant, iMax, iMid, iMin;
 
             if (0.5 < b) {
 
@@ -185,7 +184,7 @@ namespace Agrock {
                 fMin = b - (b * s);
             }
 
-            iSextant = (int) Math.Floor(h / 60f);
+            int iSextant = (int) Math.Floor(h / 60f);
 
             if (300f <= h) h -= 360f;
 
@@ -195,9 +194,9 @@ namespace Agrock {
             if (0 == iSextant % 2) fMid = h * (fMax - fMin) + fMin;
             else fMid = fMin - h * (fMax - fMin);
 
-            iMax = Convert.ToInt32(fMax * 255);
-            iMid = Convert.ToInt32(fMid * 255);
-            iMin = Convert.ToInt32(fMin * 255);
+            int iMax = Convert.ToInt32(fMax * 255);
+            int iMid = Convert.ToInt32(fMid * 255);
+            int iMin = Convert.ToInt32(fMin * 255);
 
             switch (iSextant) {
 
@@ -221,9 +220,9 @@ namespace Agrock {
          * Although it's possible to generate these patterns algorithmically,
          * it's hard to find them with equal probability.
          */
-        private static int[][,] PATTERNS = new int[][,] {
+        private static readonly int[][,] Patterns = {
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,1},
                 {2,2,3,3},
@@ -231,7 +230,7 @@ namespace Agrock {
                 {6,6,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,1},
                 {2,2,3,3},
@@ -239,7 +238,7 @@ namespace Agrock {
                 {7,7,5,6}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,1},
                 {2,2,3,3},
@@ -247,7 +246,7 @@ namespace Agrock {
                 {4,7,7,6}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,1},
                 {2,2,3,3},
@@ -255,7 +254,7 @@ namespace Agrock {
                 {4,5,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,1},
                 {2,2,3,3},
@@ -263,7 +262,7 @@ namespace Agrock {
                 {4,5,6,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,1},
                 {2,2,3,4},
@@ -271,7 +270,7 @@ namespace Agrock {
                 {6,6,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,1},
                 {2,2,3,4},
@@ -279,7 +278,7 @@ namespace Agrock {
                 {5,6,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,1},
                 {2,3,3,4},
@@ -287,7 +286,7 @@ namespace Agrock {
                 {6,6,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,1},
                 {2,3,4,4},
@@ -295,7 +294,7 @@ namespace Agrock {
                 {6,6,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,1},
                 {2,3,4,4},
@@ -303,7 +302,7 @@ namespace Agrock {
                 {7,7,5,6}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,1},
                 {2,3,4,5},
@@ -311,7 +310,7 @@ namespace Agrock {
                 {6,6,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,2},
                 {3,3,1,2},
@@ -319,7 +318,7 @@ namespace Agrock {
                 {6,6,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,2},
                 {3,3,1,2},
@@ -327,7 +326,7 @@ namespace Agrock {
                 {7,7,5,6}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,2},
                 {3,3,1,2},
@@ -335,7 +334,7 @@ namespace Agrock {
                 {4,7,7,6}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,2},
                 {3,3,1,2},
@@ -343,7 +342,7 @@ namespace Agrock {
                 {4,5,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,2},
                 {3,3,1,2},
@@ -351,7 +350,7 @@ namespace Agrock {
                 {4,5,6,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,2},
                 {3,4,1,2},
@@ -359,7 +358,7 @@ namespace Agrock {
                 {6,6,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,0,1,2},
                 {3,4,1,2},
@@ -367,7 +366,7 @@ namespace Agrock {
                 {7,7,5,6}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,1,2},
                 {0,3,3,2},
@@ -375,7 +374,7 @@ namespace Agrock {
                 {6,6,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,1,2},
                 {0,3,3,2},
@@ -383,7 +382,7 @@ namespace Agrock {
                 {7,7,5,6}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,1,2},
                 {0,3,3,2},
@@ -391,7 +390,7 @@ namespace Agrock {
                 {4,7,7,6}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,1,2},
                 {0,3,3,2},
@@ -399,7 +398,7 @@ namespace Agrock {
                 {4,5,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,1,2},
                 {0,3,3,2},
@@ -407,7 +406,7 @@ namespace Agrock {
                 {4,5,6,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,1,2},
                 {0,3,4,2},
@@ -415,7 +414,7 @@ namespace Agrock {
                 {5,7,7,6}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,2,2},
                 {0,1,3,3},
@@ -423,7 +422,7 @@ namespace Agrock {
                 {6,6,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,2,2},
                 {0,1,3,3},
@@ -431,7 +430,7 @@ namespace Agrock {
                 {7,7,5,6}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,2,2},
                 {0,1,3,3},
@@ -439,7 +438,7 @@ namespace Agrock {
                 {4,7,7,6}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,2,2},
                 {0,1,3,3},
@@ -447,7 +446,7 @@ namespace Agrock {
                 {4,5,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,2,2},
                 {0,1,3,3},
@@ -455,7 +454,7 @@ namespace Agrock {
                 {4,5,6,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,2,2},
                 {0,1,3,4},
@@ -463,7 +462,7 @@ namespace Agrock {
                 {6,6,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,2,2},
                 {0,1,3,4},
@@ -471,7 +470,7 @@ namespace Agrock {
                 {5,6,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,2,3},
                 {0,1,2,3},
@@ -479,7 +478,7 @@ namespace Agrock {
                 {6,6,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,2,3},
                 {0,1,2,3},
@@ -487,7 +486,7 @@ namespace Agrock {
                 {7,7,5,6}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,2,3},
                 {0,1,2,3},
@@ -495,7 +494,7 @@ namespace Agrock {
                 {4,7,7,6}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,2,3},
                 {0,1,2,3},
@@ -503,7 +502,7 @@ namespace Agrock {
                 {4,5,7,7}
             },
 
-            new int[,] {
+            new[,] {
 
                 {0,1,2,3},
                 {0,1,2,3},
