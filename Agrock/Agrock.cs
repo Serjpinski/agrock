@@ -21,14 +21,12 @@ namespace Agrock {
         // Note: MAX_COLOR_DIFF should be around 0.25 and REDUCTION_RATE should be around 4 / COLORS
         private static int COLORS = 16; // Different base colors in a pattern
         private static float MAX_COLOR_DIFF = 0.2f; // Maximum variation between base colors of a pattern
-        private static float REDUCTION_RATE = COLORS * 0.1f; // Rate at which color diff reduces in each iteration
-
-        private static bool COLORED = true;
+        private static float REDUCTION_RATE = COLORS * 0.2f; // Rate at which color diff reduces in each iteration
 
         private static void ParseArgs(string[] args) {
 
             Dictionary<string, string> dict = new Dictionary<string, string>();
-            for (int i = 0; i < args.Length / 2; i += 2) dict.Add(args[i], args[i + 1]);
+            for (int i = 0; i < args.Length / 2; i++) dict.Add(args[2 * i], args[2 * i + 1]);
 
             if (dict.ContainsKey("-w") && dict.ContainsKey("-h"))
                 GRID_SIZE = new Size(int.Parse(dict["-w"]), int.Parse(dict["-h"]));
@@ -38,8 +36,6 @@ namespace Agrock {
             if (dict.ContainsKey("-c")) COLORS = int.Parse(dict["-c"]);
             if (dict.ContainsKey("-cd")) MAX_COLOR_DIFF = float.Parse(dict["-cd"]);
             if (dict.ContainsKey("-r")) REDUCTION_RATE = COLORS * float.Parse(dict["-r"]);
-
-            if (dict.ContainsKey("-cl")) COLORED = bool.Parse(dict["-cl"]);
         }
 
         public static void Main(string[] args) {
@@ -50,8 +46,7 @@ namespace Agrock {
                 "-b", "256",
                 "-c", "16",
                 "-cd", "0.2",
-                "-r", "0.2",
-                "-cl", "true"};
+                "-r", "0.2"};
 
             ParseArgs(args);
 
@@ -73,34 +68,20 @@ namespace Agrock {
             int completedCells = 0;
             int lastPercentage = 0;
 
-            float colorOffset = (1 - MAX_COLOR_DIFF) / 2;
-
             for (int i = 0; i < GRID_SIZE.Width; i++) {
 
                 for (int j = 0; j < GRID_SIZE.Height; j++) {
 
                     float[,] cell = GenerateBlock(random, random.Next(NUM_PATTERNS), BLOCK_SIZE);
-                    float[,] cellColor = GenerateBlock(random, random.Next(NUM_PATTERNS), BLOCK_SIZE);
 
                     for (int ci = 0; ci < BLOCK_SIZE; ci++) {
 
                         for (int cj = 0; cj < BLOCK_SIZE; cj++) {
 
-                            if (!COLORED) {
+                            int grey = (int) Math.Round(Clamp(cell[ci, cj], 0, 1) * 255);
 
-                                int grey = (int) Math.Round(Clamp(cell[ci, cj], 0, 1) * 255);
-
-                                image.SetPixel(i * BLOCK_SIZE + ci, j * BLOCK_SIZE + cj,
-                                    Color.FromArgb(grey, grey, grey));
-                            }
-                            else {
-
-                                float b = (float) Clamp(cell[ci, cj], 0, 1);
-                                float h = (float) (360 * Clamp((cellColor[ci, cj] - colorOffset) / MAX_COLOR_DIFF, 0, 1));
-
-                                image.SetPixel(i * BLOCK_SIZE + ci, j * BLOCK_SIZE + cj,
-                                    ColorFromHSB(h, 0.2f, b));
-                            }
+                            image.SetPixel(i * BLOCK_SIZE + ci, j * BLOCK_SIZE + cj,
+                                Color.FromArgb(grey, grey, grey));
                         }
                     }
 
