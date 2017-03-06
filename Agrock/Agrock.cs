@@ -21,19 +21,34 @@ namespace Agrock {
         private static float COLOR_DIFF = 0.2f; // Maximum variation between base colors of a pattern
         private static float COLOR_DIFF_RED = COLOR_NUMBER * 0.2f; // Rate at which color diff reduces in each iteration
 
+        private static int? GRADIENT_COLOR_1 = null;
+        private static int? GRADIENT_COLOR_2 = null;
+        private static bool GRADIENT_HORIZONTAL = true;
+
         private static void ParseArgs(string[] args) {
 
-            Dictionary<string, string> dict = new Dictionary<string, string>();
-            for (int i = 0; i < args.Length / 2; i++) dict.Add(args[2 * i], args[2 * i + 1]);
+            Dictionary<string, string> param = new Dictionary<string, string>();
+            HashSet<string> modes = new HashSet<string>();
 
-            if (dict.ContainsKey("-w") && dict.ContainsKey("-h"))
-                IMAGE_SIZE = new Size(int.Parse(dict["-w"]), int.Parse(dict["-h"]));
-            if (dict.ContainsKey("-p")) PIXEL_SIZE = int.Parse(dict["-p"]);
-            if (dict.ContainsKey("-r")) RECURSION = int.Parse(dict["-r"]);
+            for (int i = 0; i < args.Length; i++) {
 
-            if (dict.ContainsKey("-cn")) COLOR_NUMBER = int.Parse(dict["-cn"]);
-            if (dict.ContainsKey("-cd")) COLOR_DIFF = float.Parse(dict["-cd"]);
-            if (dict.ContainsKey("-cdr")) COLOR_DIFF_RED = COLOR_NUMBER * float.Parse(dict["-cdr"]);
+                string arg = args[i];
+                if (arg.StartsWith("--")) modes.Add(arg);
+                else if (arg.StartsWith("-") && i + 1 < args.Length) param.Add(args[i], args[++i]);
+            }
+
+            if (param.ContainsKey("-w") && param.ContainsKey("-h"))
+                IMAGE_SIZE = new Size(int.Parse(param["-w"]), int.Parse(param["-h"]));
+            if (param.ContainsKey("-ps")) PIXEL_SIZE = int.Parse(param["-ps"]);
+            if (param.ContainsKey("-rec")) RECURSION = int.Parse(param["-rec"]);
+
+            if (param.ContainsKey("-cn")) COLOR_NUMBER = int.Parse(param["-cn"]);
+            if (param.ContainsKey("-cd")) COLOR_DIFF = float.Parse(param["-cd"]);
+            if (param.ContainsKey("-cdr")) COLOR_DIFF_RED = COLOR_NUMBER * float.Parse(param["-cdr"]);
+
+            if (param.ContainsKey("-g1")) GRADIENT_COLOR_1 = int.Parse(param["-g1"]);
+            if (param.ContainsKey("-g2")) GRADIENT_COLOR_2 = int.Parse(param["-g2"]);
+            if (param.ContainsKey("-gh")) GRADIENT_HORIZONTAL = bool.Parse(param["-gh"]);
         }
 
         public static void Main(string[] args) {
@@ -41,15 +56,19 @@ namespace Agrock {
             args = new[] {
                 "-w", "1366",
                 "-h", "786",
-                "-p", "1",
-                "-r", "4",
+                "-ps", "8",
+                "-rec", "1",
                 "-cn", "16",
                 "-cd", "0.2",
-                "-cdr", "0.2"};
+                "-cdr", "0.25",
+                "-g1", "120",
+                "-g2", "240",
+                "-gh", "false"
+            };
 
             ParseArgs(args);
 
-            int blockSize = (int) Math.Pow(PATTERN_LENGTH, RECURSION);
+            int blockSize = (int) Math.Pow(PATTERN_LENGTH, RECURSION) * PIXEL_SIZE;
             Size gridSize = new Size((IMAGE_SIZE.Width - 1) / blockSize + 1, (IMAGE_SIZE.Height - 1) / blockSize + 1);
 
             string filename = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) +
@@ -68,7 +87,17 @@ namespace Agrock {
 
             float totalBlocks = gridSize.Width * gridSize.Height;
             int completedBlocks = 0;
-            int lastPercentage = 0;
+            int lastPercentage = 0;;
+
+            bool gradient = GRADIENT_COLOR_1 != null && GRADIENT_COLOR_2 != null;
+            int color1 = 0;
+            int colorDiff = 0;
+
+            if (gradient) {
+
+                color1 = ((int) GRADIENT_COLOR_1 + 360) % 360;
+                colorDiff = (int) GRADIENT_COLOR_2 - (int) GRADIENT_COLOR_1;
+            }
 
             for (int i = 0; i < gridSize.Width; i++) {
 
@@ -80,13 +109,25 @@ namespace Agrock {
 
                         for (int cj = 0; cj < blockSize; cj++) {
 
-                            int grey = (int) Math.Round(Clamp(block[ci, cj], 0, 1) * 255);
-
                             int pi = i * blockSize + ci;
                             int pj = j * blockSize + cj;
 
-                            if (pi < IMAGE_SIZE.Width && pj < IMAGE_SIZE.Height)
-                                image.SetPixel(pi, pj, Color.FromArgb(grey, grey, grey));
+                            if (pi < IMAGE_SIZE.Width && pj < IMAGE_SIZE.Height) {
+
+                                if (!gradient) {
+
+                                    int grey = (int) Math.Round(Clamp(block[ci, cj], 0, 1) * 255);
+                                    image.SetPixel(pi, pj, Color.FromArgb(grey, grey, grey));
+                                }
+                                else {
+
+                                    float progress;
+                                    if (GRADIENT_HORIZONTAL) progress = pi / (float) IMAGE_SIZE.Width;
+                                    else progress = pj / (float) IMAGE_SIZE.Height;
+                                    float h = (color1 + progress * colorDiff + 360) % 360;
+                                    image.SetPixel(pi, pj, ColorFromHSB(h, 0.5f, block[ci, cj]));
+                                }
+                            }
                         }
                     }
 
