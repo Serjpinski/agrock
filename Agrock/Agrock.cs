@@ -17,13 +17,17 @@ namespace Agrock {
         private static int PIXEL_SIZE = 1;
         private static int RECURSION = 4;
 
-        private static int COLOR_NUMBER = 16; // Different base colors in a pattern
-        private static float COLOR_DIFF = 0.2f; // Maximum variation between base colors of a pattern
-        private static float COLOR_DIFF_RED = COLOR_NUMBER * 0.2f; // Rate at which color diff reduces in each iteration
+        private static int BRIGHTNESS_NUMBER = 16; // Different base colors in a pattern
+        private static float BRIGHTNESS_DIFF = 0.2f; // Maximum variation between base colors of a pattern
+        private static float BRIGHTNESS_DIFF_RED = BRIGHTNESS_NUMBER * 0.2f; // Rate at which color diff reduces in each iteration
 
-        private static int? GRADIENT_COLOR_1 = null;
-        private static int? GRADIENT_COLOR_2 = null;
-        private static bool GRADIENT_HORIZONTAL = true;
+        private static int? HUE_1;
+        private static int? HUE_2;
+        private static bool? HUE_GRAD;
+
+        private static float? SATURATION_1;
+        private static float? SATURATION_2;
+        private static bool? SATURATION_GRAD;
 
         private static void ParseArgs(string[] args) {
 
@@ -42,13 +46,17 @@ namespace Agrock {
             if (param.ContainsKey("-ps")) PIXEL_SIZE = int.Parse(param["-ps"]);
             if (param.ContainsKey("-rec")) RECURSION = int.Parse(param["-rec"]);
 
-            if (param.ContainsKey("-cn")) COLOR_NUMBER = int.Parse(param["-cn"]);
-            if (param.ContainsKey("-cd")) COLOR_DIFF = float.Parse(param["-cd"]);
-            if (param.ContainsKey("-cdr")) COLOR_DIFF_RED = COLOR_NUMBER * float.Parse(param["-cdr"]);
+            if (param.ContainsKey("-bn")) BRIGHTNESS_NUMBER = int.Parse(param["-bn"]);
+            if (param.ContainsKey("-bd")) BRIGHTNESS_DIFF = float.Parse(param["-bd"]);
+            if (param.ContainsKey("-bdr")) BRIGHTNESS_DIFF_RED = BRIGHTNESS_NUMBER * float.Parse(param["-bdr"]);
 
-            if (param.ContainsKey("-g1")) GRADIENT_COLOR_1 = int.Parse(param["-g1"]);
-            if (param.ContainsKey("-g2")) GRADIENT_COLOR_2 = int.Parse(param["-g2"]);
-            if (param.ContainsKey("-gh")) GRADIENT_HORIZONTAL = bool.Parse(param["-gh"]);
+            if (param.ContainsKey("-h1")) HUE_1 = int.Parse(param["-h1"]);
+            if (param.ContainsKey("-h2")) HUE_2 = int.Parse(param["-h2"]);
+            if (param.ContainsKey("-hg")) HUE_GRAD = bool.Parse(param["-hg"]);
+
+            if (param.ContainsKey("-s1")) SATURATION_1 = float.Parse(param["-s1"]);
+            if (param.ContainsKey("-s2")) SATURATION_2 = float.Parse(param["-s2"]);
+            if (param.ContainsKey("-sg")) SATURATION_GRAD = bool.Parse(param["-sg"]);
         }
 
         public static void Main(string[] args) {
@@ -58,12 +66,18 @@ namespace Agrock {
                 "-h", "786",
                 "-ps", "8",
                 "-rec", "1",
-                "-cn", "16",
-                "-cd", "0.2",
-                "-cdr", "0.25",
-                "-g1", "120",
-                "-g2", "240",
-                "-gh", "false"
+
+                "-bn", "16",
+                "-bd", "0.2",
+                "-bdr", "0.25",
+
+                "-h1", "120",
+                "-h2", "240",
+                "-hg", "false",
+
+                "-s1", "0.7",
+                "-s2", "0.0",
+                "-sg", "true"
             };
 
             ParseArgs(args);
@@ -89,14 +103,24 @@ namespace Agrock {
             int completedBlocks = 0;
             int lastPercentage = 0;;
 
-            bool gradient = GRADIENT_COLOR_1 != null && GRADIENT_COLOR_2 != null;
-            int color1 = 0;
-            int colorDiff = 0;
+            bool hueGradient = HUE_GRAD != null && HUE_1 != null && HUE_2 != null;
+            bool saturationGradient = SATURATION_GRAD != null && SATURATION_1 != null && SATURATION_2 != null;
 
-            if (gradient) {
+            int hue1 = 0;
+            int hueDiff = 0;
+            float saturation1 = 0f;
+            float saturationDiff = 0f;
 
-                color1 = ((int) GRADIENT_COLOR_1 + 360) % 360;
-                colorDiff = (int) GRADIENT_COLOR_2 - (int) GRADIENT_COLOR_1;
+            if (hueGradient) {
+
+                hue1 = ((int) HUE_1 + 360) % 360;
+                hueDiff = (int) HUE_2 - (int) HUE_1;
+            }
+
+            if (saturationGradient) {
+
+                saturation1 = (float) SATURATION_1;
+                saturationDiff = (float) SATURATION_2 - saturation1;
             }
 
             for (int i = 0; i < gridSize.Width; i++) {
@@ -114,19 +138,28 @@ namespace Agrock {
 
                             if (pi < IMAGE_SIZE.Width && pj < IMAGE_SIZE.Height) {
 
-                                if (!gradient) {
+                                float h = 0f;
+                                float s = 0f;
+                                float b = block[ci, cj];
 
-                                    int grey = (int) Math.Round(Clamp(block[ci, cj], 0, 1) * 255);
-                                    image.SetPixel(pi, pj, Color.FromArgb(grey, grey, grey));
-                                }
-                                else {
+                                if (hueGradient) {
 
                                     float progress;
-                                    if (GRADIENT_HORIZONTAL) progress = pi / (float) IMAGE_SIZE.Width;
+                                    if ((bool) HUE_GRAD) progress = pi / (float) IMAGE_SIZE.Width;
                                     else progress = pj / (float) IMAGE_SIZE.Height;
-                                    float h = (color1 + progress * colorDiff + 360) % 360;
-                                    image.SetPixel(pi, pj, ColorFromHSB(h, 0.5f, block[ci, cj]));
+                                    h = (hue1 + progress * hueDiff + 360) % 360;
+                                    s = 0.5f;
                                 }
+
+                                if (saturationGradient) {
+
+                                    float progress;
+                                    if ((bool) SATURATION_GRAD) progress = pi / (float) IMAGE_SIZE.Width;
+                                    else progress = pj / (float) IMAGE_SIZE.Height;
+                                    s = saturation1 + progress * saturationDiff;
+                                }
+
+                                image.SetPixel(pi, pj, ColorFromHSB(h, s, b));
                             }
                         }
                     }
@@ -150,7 +183,7 @@ namespace Agrock {
         public static float[,] GenerateBlock(Random rng, int patternIndex, int blockSize) {
 
             float[,] block = new float[blockSize, blockSize];
-            FillSquare(rng, block, 0, 0, blockSize, 0.5f, COLOR_DIFF, patternIndex);
+            FillSquare(rng, block, 0, 0, blockSize, 0.5f, BRIGHTNESS_DIFF, patternIndex);
             return block;
         }
 
@@ -159,7 +192,7 @@ namespace Agrock {
 
             int[,] pattern = Patterns[patternIndex];
             int[] coloring = GenerateColoring(rng); // Gets a random coloring with no restrictions
-            float colorVar = colorDiff / COLOR_NUMBER; // Color variation between two consecutive colors
+            float colorVar = colorDiff / BRIGHTNESS_NUMBER; // Color variation between two consecutive colors
 
             int cellLength = length / PATTERN_LENGTH;
 
@@ -175,7 +208,7 @@ namespace Agrock {
                         // Fills this cell with a new pattern
                         FillSquare(rng, texture,
                             initX + i * cellLength, initY + j * cellLength, cellLength,
-                            cellBaseColor, colorDiff / COLOR_DIFF_RED,
+                            cellBaseColor, colorDiff / BRIGHTNESS_DIFF_RED,
                             rng.Next(NUM_PATTERNS));
                     }
                     else {
@@ -196,7 +229,7 @@ namespace Agrock {
             int[] coloring = new int[RECTANGLES];
 
             for (int i = 0; i < coloring.Length; i++)
-                coloring[i] = rng.Next(COLOR_NUMBER);
+                coloring[i] = rng.Next(BRIGHTNESS_NUMBER);
 
             return coloring;
         }
