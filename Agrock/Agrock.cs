@@ -13,7 +13,10 @@ namespace Agrock {
         private const int PATTERN_LENGTH = 4;
         private const int RECTANGLES = (PATTERN_LENGTH * PATTERN_LENGTH) / 2;
 
-        private static Size IMAGE_SIZE = new Size(4096, 2304);
+        private static readonly Random RANDOM = new Random();
+
+        private static int WIDTH = 4096;
+        private static int HEIGHT = 2304;
         private static int PIXEL_SIZE = 1;
         private static int RECURSION = 4;
 
@@ -41,8 +44,10 @@ namespace Agrock {
                 else if (arg.StartsWith("-") && i + 1 < args.Length) param.Add(args[i], args[++i]);
             }
 
-            if (param.ContainsKey("-w") && param.ContainsKey("-h"))
-                IMAGE_SIZE = new Size(int.Parse(param["-w"]), int.Parse(param["-h"]));
+            if (modes.Contains("--random")) SetRandomParams();
+
+            if (param.ContainsKey("-w")) WIDTH = int.Parse(param["-w"]);
+            if (param.ContainsKey("-h")) HEIGHT = int.Parse(param["-h"]);
             if (param.ContainsKey("-ps")) PIXEL_SIZE = int.Parse(param["-ps"]);
             if (param.ContainsKey("-rec")) RECURSION = int.Parse(param["-rec"]);
 
@@ -59,40 +64,61 @@ namespace Agrock {
             if (param.ContainsKey("-sg")) SATURATION_GRAD = bool.Parse(param["-sg"]);
         }
 
+        private static void SetRandomParams() {
+
+            WIDTH = 600 + RANDOM.Next(6000);
+            HEIGHT = 400 + RANDOM.Next(4000);
+            PIXEL_SIZE = (int) Math.Pow(2, RANDOM.Next(5));
+            RECURSION = 1 + RANDOM.Next(5);
+
+            BRIGHTNESS_NUMBER = (int) Math.Pow(2, 1 + RANDOM.Next(5));
+            BRIGHTNESS_DIFF = 0.1f + 0.2f * (float) RANDOM.NextDouble();
+            BRIGHTNESS_DIFF_RED = 0.1f + 0.2f * (float) RANDOM.NextDouble();
+
+            if (RANDOM.Next(2) == 0) HUE_1 = RANDOM.Next(360);
+            if (RANDOM.Next(2) == 0) HUE_2 = RANDOM.Next(360);
+            if (RANDOM.Next(2) == 0) HUE_GRAD = RANDOM.Next(2) == 0;
+
+            if (RANDOM.Next(2) == 0) SATURATION_1 = (float) RANDOM.NextDouble();
+            if (RANDOM.Next(2) == 0) SATURATION_2 = (float) RANDOM.NextDouble();
+            if (RANDOM.Next(2) == 0) SATURATION_GRAD = RANDOM.Next(2) == 0;
+        }
+
         public static void Main(string[] args) {
 
             args = new[] {
+
                 "-w", "1366",
                 "-h", "786",
-                "-ps", "8",
-                "-rec", "1",
+//                "-ps", "8",
+//                "-rec", "1",
+//
+//                "-bn", "16",
+//                "-bd", "0.2",
+//                "-bdr", "0.25",
+//
+//                "-h1", "0",
+//                "-h2", "360",
+//                "-hg", "null",
+//
+//                "-s1", "0.5",
+//                "-s2", "0.0",
+//                "-sg", "null",
 
-                "-bn", "16",
-                "-bd", "0.2",
-                "-bdr", "0.25",
-
-                "-h1", "120",
-                "-h2", "240",
-                "-hg", "false",
-
-                "-s1", "0.7",
-                "-s2", "0.0",
-                "-sg", "true"
+                "--random"
             };
 
             ParseArgs(args);
 
             int blockSize = (int) Math.Pow(PATTERN_LENGTH, RECURSION) * PIXEL_SIZE;
-            Size gridSize = new Size((IMAGE_SIZE.Width - 1) / blockSize + 1, (IMAGE_SIZE.Height - 1) / blockSize + 1);
+            Size gridSize = new Size((WIDTH - 1) / blockSize + 1, (HEIGHT - 1) / blockSize + 1);
 
             string filename = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) +
                 "/" + DateTime.Now.Year + "-" + DateTime.Now.Month + "-" + DateTime.Now.Day +
                 "-" + DateTime.Now.Hour + "-" + DateTime.Now.Minute + "-" + DateTime.Now.Second +
                 "-" + DateTime.Now.Millisecond + ".png";
 
-            Random random = new Random();
-
-            Bitmap image = new Bitmap(IMAGE_SIZE.Width, IMAGE_SIZE.Height);
+            Bitmap image = new Bitmap(WIDTH, HEIGHT);
 
             Console.WriteLine("Algorithmically generating rock image");
             Console.WriteLine("Size: " + image.Width + "x" + image.Height + "px");
@@ -101,10 +127,11 @@ namespace Agrock {
 
             float totalBlocks = gridSize.Width * gridSize.Height;
             int completedBlocks = 0;
-            int lastPercentage = 0;;
+            int lastPercentage = 0;
 
             bool hueGradient = HUE_GRAD != null && HUE_1 != null && HUE_2 != null;
-            bool saturationGradient = SATURATION_GRAD != null && SATURATION_1 != null && SATURATION_2 != null;
+            bool saturationGradient = HUE_1 != null &&
+                                      SATURATION_GRAD != null && SATURATION_1 != null && SATURATION_2 != null;
 
             int hue1 = 0;
             int hueDiff = 0;
@@ -127,7 +154,7 @@ namespace Agrock {
 
                 for (int j = 0; j < gridSize.Height; j++) {
 
-                    float[,] block = GenerateBlock(random, random.Next(NUM_PATTERNS), blockSize);
+                    float[,] block = GenerateBlock(RANDOM, RANDOM.Next(NUM_PATTERNS), blockSize);
 
                     for (int ci = 0; ci < blockSize; ci++) {
 
@@ -136,26 +163,26 @@ namespace Agrock {
                             int pi = i * blockSize + ci;
                             int pj = j * blockSize + cj;
 
-                            if (pi < IMAGE_SIZE.Width && pj < IMAGE_SIZE.Height) {
+                            if (pi < WIDTH && pj < HEIGHT) {
 
-                                float h = 0f;
-                                float s = 0f;
+                                float h = HUE_1 ?? 0f;
+                                float s = SATURATION_1 ?? 0f;
                                 float b = block[ci, cj];
 
                                 if (hueGradient) {
 
                                     float progress;
-                                    if ((bool) HUE_GRAD) progress = pi / (float) IMAGE_SIZE.Width;
-                                    else progress = pj / (float) IMAGE_SIZE.Height;
+                                    if ((bool) HUE_GRAD) progress = pi / (float) WIDTH;
+                                    else progress = pj / (float) HEIGHT;
                                     h = (hue1 + progress * hueDiff + 360) % 360;
-                                    s = 0.5f;
+                                    s = SATURATION_1 ?? 0.5f;
                                 }
 
                                 if (saturationGradient) {
 
                                     float progress;
-                                    if ((bool) SATURATION_GRAD) progress = pi / (float) IMAGE_SIZE.Width;
-                                    else progress = pj / (float) IMAGE_SIZE.Height;
+                                    if ((bool) SATURATION_GRAD) progress = pi / (float) WIDTH;
+                                    else progress = pj / (float) HEIGHT;
                                     s = saturation1 + progress * saturationDiff;
                                 }
 
@@ -187,11 +214,11 @@ namespace Agrock {
             return block;
         }
 
-        private static void FillSquare(Random rng, float[,] texture,
+        private static void FillSquare(Random random, float[,] texture,
             int initX, int initY, int length, float baseColor, float colorDiff, int patternIndex) {
 
             int[,] pattern = Patterns[patternIndex];
-            int[] coloring = GenerateColoring(rng); // Gets a random coloring with no restrictions
+            int[] coloring = GenerateColoring(random); // Gets a random coloring with no restrictions
             float colorVar = colorDiff / BRIGHTNESS_NUMBER; // Color variation between two consecutive colors
 
             int cellLength = length / PATTERN_LENGTH;
@@ -206,10 +233,10 @@ namespace Agrock {
                     if (cellLength > PIXEL_SIZE) {
 
                         // Fills this cell with a new pattern
-                        FillSquare(rng, texture,
+                        FillSquare(random, texture,
                             initX + i * cellLength, initY + j * cellLength, cellLength,
                             cellBaseColor, colorDiff / BRIGHTNESS_DIFF_RED,
-                            rng.Next(NUM_PATTERNS));
+                            random.Next(NUM_PATTERNS));
                     }
                     else {
 
@@ -224,12 +251,12 @@ namespace Agrock {
             }
         }
 
-        private static int[] GenerateColoring(Random rng) {
+        private static int[] GenerateColoring(Random random) {
 
             int[] coloring = new int[RECTANGLES];
 
             for (int i = 0; i < coloring.Length; i++)
-                coloring[i] = rng.Next(BRIGHTNESS_NUMBER);
+                coloring[i] = random.Next(BRIGHTNESS_NUMBER);
 
             return coloring;
         }
