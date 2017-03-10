@@ -9,30 +9,87 @@ namespace Agrock {
 
     public class Agrock {
 
+        public const string ARG_WIDTH = "-w";
+        public const string ARG_HEIGHT = "-h";
+        public const string ARG_PIXEL_SIZE = "-ps";
+        public const string ARG_RECURSION = "-rec";
+        public const string ARG_GREY_NUMBER = "-gn";
+        public const string ARG_GREY_BASE_DIFF = "-gbd";
+        public const string ARG_GREY_DIFF_RED = "-gdr";
+        public const string ARG_HUE_1 = "-h1";
+        public const string ARG_HUE_2 = "-h2";
+        public const string ARG_HUE_GRAD = "-hg";
+        public const string ARG_SAT_1 = "-s1";
+        public const string ARG_SAT_2 = "-s2";
+        public const string ARG_SAT_GRAD = "-sg";
+        public const string ARG_RANDOM = "--random";
+
         private const int NUM_PATTERNS = 36;
         private const int PATTERN_LENGTH = 4;
         private const int RECTANGLES = (PATTERN_LENGTH * PATTERN_LENGTH) / 2;
 
         private static readonly Random RANDOM = new Random();
 
-        private static int WIDTH = 4096;
-        private static int HEIGHT = 2304;
-        private static int PIXEL_SIZE = 1;
-        private static int RECURSION = 4;
+        private int width = 4096;
+        private int height = 2304;
+        private int pixelSize = 1;
+        private int recursion = 4;
+        private int greyNumber = 16; // Different base greys in a pattern
+        private float greyBaseDiff = 0.2f; // Maximum variation between base greys of a pattern
+        private float greyDiffRed = 0.2f; // Rate at which greyBaseDiff reduces in each iteration
+        private int? hue1;
+        private int? hue2;
+        private bool? hueGrad;
+        private float? sat1;
+        private float? sat2;
+        private static bool? satGrad;
 
-        private static int BRIGHTNESS_NUMBER = 16; // Different base colors in a pattern
-        private static float BRIGHTNESS_DIFF = 0.2f; // Maximum variation between base colors of a pattern
-        private static float BRIGHTNESS_DIFF_RED = BRIGHTNESS_NUMBER * 0.2f; // Rate at which color diff reduces in each iteration
+        private string getArgList() {
 
-        private static int? HUE_1;
-        private static int? HUE_2;
-        private static bool? HUE_GRAD;
+            return ARG_WIDTH + " " + width
+                   + " " + ARG_HEIGHT + " " + height
+                   + " " + ARG_PIXEL_SIZE + " " + pixelSize
+                   + " " + ARG_RECURSION + " " + recursion
+                   + " " + ARG_GREY_NUMBER + " " + greyNumber
+                   + " " + ARG_GREY_BASE_DIFF + " " + greyBaseDiff
+                   + " " + ARG_GREY_DIFF_RED + " " + greyDiffRed
+                   + " " + ARG_HUE_1 + " " + hue1
+                   + " " + ARG_HUE_2 + " " + hue2
+                   + " " + ARG_HUE_GRAD + " " + hueGrad
+                   + " " + ARG_SAT_1 + " " + sat1
+                   + " " + ARG_SAT_2 + " " + sat2
+                   + " " + ARG_SAT_GRAD + " " + satGrad
+                   + " " + ARG_RANDOM;
+        }
 
-        private static float? SATURATION_1;
-        private static float? SATURATION_2;
-        private static bool? SATURATION_GRAD;
+        public static void Main(string[] args) {
 
-        private static void ParseArgs(string[] args) {
+            args = new[] {
+
+                ARG_WIDTH, "1366",
+                ARG_HEIGHT, "786",
+//                ARG_PIXEL_SIZE, "8",
+//                ARG_RECURSION, "1",
+//
+//                ARG_GREY_NUMBER, "16",
+//                ARG_GREY_BASE_DIFF, "0.2",
+//                ARG_GREY_DIFF_RED, "0.25",
+//
+//                ARG_HUE_1, "0",
+//                ARG_HUE_2, "360",
+//                ARG_HUE_GRAD, "null",
+//
+//                ARG_SAT_1, "0.5",
+//                ARG_SAT_2, "0.0",
+//                ARG_SAT_GRAD, "null",
+
+                ARG_RANDOM
+            };
+
+            new Agrock(args);
+        }
+
+        private void ParseArgs(string[] args) {
 
             Dictionary<string, string> param = new Dictionary<string, string>();
             HashSet<string> modes = new HashSet<string>();
@@ -44,82 +101,61 @@ namespace Agrock {
                 else if (arg.StartsWith("-") && i + 1 < args.Length) param.Add(args[i], args[++i]);
             }
 
-            if (modes.Contains("--random")) SetRandomParams();
+            if (modes.Contains(ARG_RANDOM)) SetRandomParams();
 
-            if (param.ContainsKey("-w")) WIDTH = int.Parse(param["-w"]);
-            if (param.ContainsKey("-h")) HEIGHT = int.Parse(param["-h"]);
-            if (param.ContainsKey("-ps")) PIXEL_SIZE = int.Parse(param["-ps"]);
-            if (param.ContainsKey("-rec")) RECURSION = int.Parse(param["-rec"]);
+            if (param.ContainsKey(ARG_WIDTH)) width = int.Parse(param[ARG_WIDTH]);
+            if (param.ContainsKey(ARG_HEIGHT)) height = int.Parse(param[ARG_HEIGHT]);
+            if (param.ContainsKey(ARG_PIXEL_SIZE)) pixelSize = int.Parse(param[ARG_PIXEL_SIZE]);
+            if (param.ContainsKey(ARG_RECURSION)) recursion = int.Parse(param[ARG_RECURSION]);
 
-            if (param.ContainsKey("-bn")) BRIGHTNESS_NUMBER = int.Parse(param["-bn"]);
-            if (param.ContainsKey("-bd")) BRIGHTNESS_DIFF = float.Parse(param["-bd"]);
-            if (param.ContainsKey("-bdr")) BRIGHTNESS_DIFF_RED = BRIGHTNESS_NUMBER * float.Parse(param["-bdr"]);
+            if (param.ContainsKey(ARG_GREY_NUMBER)) greyNumber = int.Parse(param[ARG_GREY_NUMBER]);
+            if (param.ContainsKey(ARG_GREY_BASE_DIFF)) greyBaseDiff = float.Parse(param[ARG_GREY_BASE_DIFF]);
+            if (param.ContainsKey(ARG_GREY_DIFF_RED)) greyDiffRed = float.Parse(param[ARG_GREY_DIFF_RED]);
 
-            if (param.ContainsKey("-h1")) HUE_1 = int.Parse(param["-h1"]);
-            if (param.ContainsKey("-h2")) HUE_2 = int.Parse(param["-h2"]);
-            if (param.ContainsKey("-hg")) HUE_GRAD = bool.Parse(param["-hg"]);
+            if (param.ContainsKey(ARG_HUE_1)) hue1 = int.Parse(param[ARG_HUE_1]);
+            if (param.ContainsKey(ARG_HUE_2)) hue2 = int.Parse(param[ARG_HUE_2]);
+            if (param.ContainsKey(ARG_HUE_GRAD)) hueGrad = bool.Parse(param[ARG_HUE_GRAD]);
 
-            if (param.ContainsKey("-s1")) SATURATION_1 = float.Parse(param["-s1"]);
-            if (param.ContainsKey("-s2")) SATURATION_2 = float.Parse(param["-s2"]);
-            if (param.ContainsKey("-sg")) SATURATION_GRAD = bool.Parse(param["-sg"]);
+            if (param.ContainsKey(ARG_SAT_1)) sat1 = float.Parse(param[ARG_SAT_1]);
+            if (param.ContainsKey(ARG_SAT_2)) sat2 = float.Parse(param[ARG_SAT_2]);
+            if (param.ContainsKey(ARG_SAT_GRAD)) satGrad = bool.Parse(param[ARG_SAT_GRAD]);
         }
 
-        private static void SetRandomParams() {
+        private void SetRandomParams() {
 
-            WIDTH = 600 + RANDOM.Next(6000);
-            HEIGHT = 400 + RANDOM.Next(4000);
-            PIXEL_SIZE = (int) Math.Pow(2, RANDOM.Next(5));
-            RECURSION = 1 + RANDOM.Next(5);
+            width = 600 + RANDOM.Next(6000);
+            height = 400 + RANDOM.Next(4000);
+            pixelSize = (int) Math.Pow(2, RANDOM.Next(5));
+            recursion = 1 + RANDOM.Next(5);
 
-            BRIGHTNESS_NUMBER = (int) Math.Pow(2, 1 + RANDOM.Next(5));
-            BRIGHTNESS_DIFF = 0.1f + 0.2f * (float) RANDOM.NextDouble();
-            BRIGHTNESS_DIFF_RED = 0.1f + 0.2f * (float) RANDOM.NextDouble();
+            greyNumber = (int) Math.Pow(2, 1 + RANDOM.Next(5));
+            greyBaseDiff = 0.1f + 0.2f * (float) RANDOM.NextDouble();
+            greyDiffRed = 0.1f + 0.2f * (float) RANDOM.NextDouble();
 
-            if (RANDOM.Next(2) == 0) HUE_1 = RANDOM.Next(360);
-            if (RANDOM.Next(2) == 0) HUE_2 = RANDOM.Next(360);
-            if (RANDOM.Next(2) == 0) HUE_GRAD = RANDOM.Next(2) == 0;
+            if (RANDOM.Next(2) == 0) hue1 = RANDOM.Next(360);
+            if (RANDOM.Next(2) == 0) hue2 = RANDOM.Next(360);
+            if (RANDOM.Next(2) == 0) hueGrad = RANDOM.Next(2) == 0;
 
-            if (RANDOM.Next(2) == 0) SATURATION_1 = (float) RANDOM.NextDouble();
-            if (RANDOM.Next(2) == 0) SATURATION_2 = (float) RANDOM.NextDouble();
-            if (RANDOM.Next(2) == 0) SATURATION_GRAD = RANDOM.Next(2) == 0;
+            if (RANDOM.Next(2) == 0) sat1 = (float) RANDOM.NextDouble();
+            if (RANDOM.Next(2) == 0) sat2 = (float) RANDOM.NextDouble();
+            if (RANDOM.Next(2) == 0) satGrad = RANDOM.Next(2) == 0;
         }
 
-        public static void Main(string[] args) {
-
-            args = new[] {
-
-                "-w", "1366",
-                "-h", "786",
-//                "-ps", "8",
-//                "-rec", "1",
-//
-//                "-bn", "16",
-//                "-bd", "0.2",
-//                "-bdr", "0.25",
-//
-//                "-h1", "0",
-//                "-h2", "360",
-//                "-hg", "null",
-//
-//                "-s1", "0.5",
-//                "-s2", "0.0",
-//                "-sg", "null",
-
-                "--random"
-            };
+        public Agrock(string[] args) {
 
             ParseArgs(args);
 
-            int blockSize = (int) Math.Pow(PATTERN_LENGTH, RECURSION) * PIXEL_SIZE;
-            Size gridSize = new Size((WIDTH - 1) / blockSize + 1, (HEIGHT - 1) / blockSize + 1);
+            int blockSize = (int) Math.Pow(PATTERN_LENGTH, recursion) * pixelSize;
+            Size gridSize = new Size((width - 1) / blockSize + 1, (height - 1) / blockSize + 1);
 
             string filename = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) +
-                "/" + DateTime.Now.Year + "-" + DateTime.Now.Month + "-" + DateTime.Now.Day +
-                "-" + DateTime.Now.Hour + "-" + DateTime.Now.Minute + "-" + DateTime.Now.Second +
-                "-" + DateTime.Now.Millisecond + ".png";
+                              "/" + DateTime.Now.Year + "-" + DateTime.Now.Month + "-" + DateTime.Now.Day +
+                              "-" + DateTime.Now.Hour + "-" + DateTime.Now.Minute + "-" + DateTime.Now.Second +
+                              "-" + DateTime.Now.Millisecond + ".png";
 
-            Bitmap image = new Bitmap(WIDTH, HEIGHT);
+            Bitmap image = new Bitmap(width, height);
 
+            Console.WriteLine("Args: " + getArgList());
             Console.WriteLine("Algorithmically generating rock image");
             Console.WriteLine("Size: " + image.Width + "x" + image.Height + "px");
             Console.WriteLine("File: " + filename);
@@ -129,25 +165,25 @@ namespace Agrock {
             int completedBlocks = 0;
             int lastPercentage = 0;
 
-            bool hueGradient = HUE_GRAD != null && HUE_1 != null && HUE_2 != null;
-            bool saturationGradient = HUE_1 != null &&
-                                      SATURATION_GRAD != null && SATURATION_1 != null && SATURATION_2 != null;
+            bool hueGradient = hueGrad != null && hue1 != null && hue2 != null;
+            bool satGradient = hue1 != null &&
+                                      satGrad != null && sat1 != null && sat2 != null;
 
-            int hue1 = 0;
+            int hueBase = 0;
             int hueDiff = 0;
-            float saturation1 = 0f;
-            float saturationDiff = 0f;
+            float satBase = 0f;
+            float satDiff = 0f;
 
             if (hueGradient) {
 
-                hue1 = ((int) HUE_1 + 360) % 360;
-                hueDiff = (int) HUE_2 - (int) HUE_1;
+                hueBase = ((int) hue1 + 360) % 360;
+                hueDiff = (int) hue2 - (int) hue1;
             }
 
-            if (saturationGradient) {
+            if (satGradient) {
 
-                saturation1 = (float) SATURATION_1;
-                saturationDiff = (float) SATURATION_2 - saturation1;
+                satBase = (float) sat1;
+                satDiff = (float) sat2 - satBase;
             }
 
             for (int i = 0; i < gridSize.Width; i++) {
@@ -163,30 +199,37 @@ namespace Agrock {
                             int pi = i * blockSize + ci;
                             int pj = j * blockSize + cj;
 
-                            if (pi < WIDTH && pj < HEIGHT) {
+                            if (pi < width && pj < height) {
 
-                                float h = HUE_1 ?? 0f;
-                                float s = SATURATION_1 ?? 0f;
-                                float b = block[ci, cj];
+                                float hue = hue1 ?? 0f;
+                                float sat = sat1 ?? 0f;
+                                float bri = block[ci, cj];
 
                                 if (hueGradient) {
 
                                     float progress;
-                                    if ((bool) HUE_GRAD) progress = pi / (float) WIDTH;
-                                    else progress = pj / (float) HEIGHT;
-                                    h = (hue1 + progress * hueDiff + 360) % 360;
-                                    s = SATURATION_1 ?? 0.5f;
+                                    if ((bool) hueGrad) progress = pi / (float) width;
+                                    else progress = pj / (float) height;
+                                    hue = (hueBase + progress * hueDiff + 360) % 360;
+                                    sat = sat1 ?? 0.5f;
                                 }
 
-                                if (saturationGradient) {
+                                if (satGradient) {
 
                                     float progress;
-                                    if ((bool) SATURATION_GRAD) progress = pi / (float) WIDTH;
-                                    else progress = pj / (float) HEIGHT;
-                                    s = saturation1 + progress * saturationDiff;
+                                    if ((bool) satGrad) progress = pi / (float) width;
+                                    else progress = pj / (float) height;
+                                    sat = satBase + progress * satDiff;
                                 }
 
-                                image.SetPixel(pi, pj, ColorFromHSB(h, s, b));
+                                try {
+
+                                    image.SetPixel(pi, pj, ColorFromHSB(hue, sat, bri));
+                                }
+                                catch (ArgumentException) {
+
+                                    throw new Exception("Weird parameters");
+                                }
                             }
                         }
                     }
@@ -207,19 +250,19 @@ namespace Agrock {
             image.Save(filename, ImageFormat.Png);
         }
 
-        public static float[,] GenerateBlock(Random rng, int patternIndex, int blockSize) {
+        public float[,] GenerateBlock(Random rng, int patternIndex, int blockSize) {
 
             float[,] block = new float[blockSize, blockSize];
-            FillSquare(rng, block, 0, 0, blockSize, 0.5f, BRIGHTNESS_DIFF, patternIndex);
+            FillSquare(rng, block, 0, 0, blockSize, 0.5f, greyBaseDiff, patternIndex);
             return block;
         }
 
-        private static void FillSquare(Random random, float[,] texture,
-            int initX, int initY, int length, float baseColor, float colorDiff, int patternIndex) {
+        private void FillSquare(Random random, float[,] texture,
+            int initX, int initY, int length, float baseGrey, float greyDiff, int patternIndex) {
 
             int[,] pattern = Patterns[patternIndex];
-            int[] coloring = GenerateColoring(random); // Gets a random coloring with no restrictions
-            float colorVar = colorDiff / BRIGHTNESS_NUMBER; // Color variation between two consecutive colors
+            int[] greying = GenerateGreying(random); // Gets a random greying with no restrictions
+            float greyVar = greyDiff / greyNumber; // Grey variation between two consecutive greys
 
             int cellLength = length / PATTERN_LENGTH;
 
@@ -227,38 +270,38 @@ namespace Agrock {
 
                 for (int j = 0; j < PATTERN_LENGTH; j++) {
 
-                    // Gets the base color for this cell
-                    float cellBaseColor = baseColor + colorDiff / 2 - colorVar * (0.5f + coloring[pattern[i, j]]);
+                    // Gets the base grey for this cell
+                    float cellBaseGrey = baseGrey + greyDiff / 2 - greyVar * (0.5f + greying[pattern[i, j]]);
 
-                    if (cellLength > PIXEL_SIZE) {
+                    if (cellLength > pixelSize) {
 
                         // Fills this cell with a new pattern
                         FillSquare(random, texture,
                             initX + i * cellLength, initY + j * cellLength, cellLength,
-                            cellBaseColor, colorDiff / BRIGHTNESS_DIFF_RED,
+                            cellBaseGrey, greyDiff / (greyNumber * greyDiffRed),
                             random.Next(NUM_PATTERNS));
                     }
                     else {
 
-                        // Paints this cell pixels with the base color
-                        float color = cellBaseColor;
+                        // Paints this cell pixels with the base grey
+                        float grey = cellBaseGrey;
 
                         for (int m = 0; m < cellLength; m++)
                             for (int n = 0; n < cellLength; n++)
-                                texture[initX + i * cellLength + m, initY + j * cellLength + n] = color;
+                                texture[initX + i * cellLength + m, initY + j * cellLength + n] = grey;
                     }
                 }
             }
         }
 
-        private static int[] GenerateColoring(Random random) {
+        private int[] GenerateGreying(Random random) {
 
-            int[] coloring = new int[RECTANGLES];
+            int[] greying = new int[RECTANGLES];
 
-            for (int i = 0; i < coloring.Length; i++)
-                coloring[i] = random.Next(BRIGHTNESS_NUMBER);
+            for (int i = 0; i < greying.Length; i++)
+                greying[i] = random.Next(greyNumber);
 
-            return coloring;
+            return greying;
         }
 
         public static double Clamp(double value, double min, double max) {
@@ -321,7 +364,7 @@ namespace Agrock {
         }
 
         /*
-         * The 36 possible patterns (without color randomization).
+         * The 36 possible patterns (without grey randomization).
          * Although it's possible to generate these patterns algorithmically,
          * it's hard to find them with equal probability.
          */
