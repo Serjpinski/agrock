@@ -42,7 +42,14 @@ namespace Agrock {
         private bool? hueGrad;
         private float? sat1;
         private float? sat2;
-        private static bool? satGrad;
+        private bool? satGrad;
+
+        private readonly bool hueGradient;
+        private readonly bool satGradient;
+        private readonly float hueBase;
+        private readonly float hueDiff;
+        private readonly float satBase;
+        private readonly float satDiff;
 
         private string getArgList() {
 
@@ -68,20 +75,20 @@ namespace Agrock {
 
                 ARG_WIDTH, "1366",
                 ARG_HEIGHT, "786",
-//                ARG_PIXEL_SIZE, "8",
-//                ARG_RECURSION, "1",
-//
-//                ARG_GREY_NUMBER, "16",
-//                ARG_GREY_BASE_DIFF, "0.2",
-//                ARG_GREY_DIFF_RED, "0.25",
-//
-//                ARG_HUE_1, "0",
-//                ARG_HUE_2, "360",
-//                ARG_HUE_GRAD, "null",
-//
-//                ARG_SAT_1, "0.5",
-//                ARG_SAT_2, "0.0",
-//                ARG_SAT_GRAD, "null",
+                ARG_PIXEL_SIZE, "8",
+                ARG_RECURSION, "1",
+
+                ARG_GREY_NUMBER, "16",
+                ARG_GREY_BASE_DIFF, "0.2",
+                ARG_GREY_DIFF_RED, "0.25",
+
+                ARG_HUE_1, "0",
+                ARG_HUE_2, "360",
+                ARG_HUE_GRAD, "true",
+
+                ARG_SAT_1, "0.0",
+                ARG_SAT_2, "0.5",
+                ARG_SAT_GRAD, "false",
 
                 ARG_RANDOM
             };
@@ -165,14 +172,13 @@ namespace Agrock {
             int completedBlocks = 0;
             int lastPercentage = 0;
 
-            bool hueGradient = hueGrad != null && hue1 != null && hue2 != null;
-            bool satGradient = hue1 != null &&
-                                      satGrad != null && sat1 != null && sat2 != null;
+            hueGradient = hueGrad != null && hue1 != null && hue2 != null;
+            satGradient = hue1 != null && satGrad != null && sat1 != null && sat2 != null;
 
-            int hueBase = 0;
-            int hueDiff = 0;
-            float satBase = 0f;
-            float satDiff = 0f;
+            hueBase = 0;
+            hueDiff = 0;
+            satBase = 0;
+            satDiff = 0;
 
             if (hueGradient) {
 
@@ -190,7 +196,7 @@ namespace Agrock {
 
                 for (int j = 0; j < gridSize.Height; j++) {
 
-                    float[,] block = GenerateBlock(RANDOM, RANDOM.Next(NUM_PATTERNS), blockSize);
+                    Color[,] block = GenerateBlock(RANDOM, RANDOM.Next(NUM_PATTERNS), i, j, blockSize);
 
                     for (int ci = 0; ci < blockSize; ci++) {
 
@@ -199,38 +205,7 @@ namespace Agrock {
                             int pi = i * blockSize + ci;
                             int pj = j * blockSize + cj;
 
-                            if (pi < width && pj < height) {
-
-                                float hue = hue1 ?? 0f;
-                                float sat = sat1 ?? 0f;
-                                float bri = block[ci, cj];
-
-                                if (hueGradient) {
-
-                                    float progress;
-                                    if ((bool) hueGrad) progress = pi / (float) width;
-                                    else progress = pj / (float) height;
-                                    hue = (hueBase + progress * hueDiff + 360) % 360;
-                                    sat = sat1 ?? 0.5f;
-                                }
-
-                                if (satGradient) {
-
-                                    float progress;
-                                    if ((bool) satGrad) progress = pi / (float) width;
-                                    else progress = pj / (float) height;
-                                    sat = satBase + progress * satDiff;
-                                }
-
-                                try {
-
-                                    image.SetPixel(pi, pj, ColorFromHSB(hue, sat, bri));
-                                }
-                                catch (ArgumentException) {
-
-                                    throw new Exception("Weird parameters");
-                                }
-                            }
+                            if (pi < width && pj < height) image.SetPixel(pi, pj, block[ci, cj]);
                         }
                     }
 
@@ -250,45 +225,75 @@ namespace Agrock {
             image.Save(filename, ImageFormat.Png);
         }
 
-        public float[,] GenerateBlock(Random rng, int patternIndex, int blockSize) {
+        public Color[,] GenerateBlock(Random rng, int patternIndex, int x, int y, int size) {
 
-            float[,] block = new float[blockSize, blockSize];
-            FillSquare(rng, block, 0, 0, blockSize, 0.5f, greyBaseDiff, patternIndex);
+            Color[,] block = new Color[size, size];
+            GenerateSubBlock(rng, block, x, y, patternIndex, 0, 0, size, 0.5f, greyBaseDiff);
             return block;
         }
 
-        private void FillSquare(Random random, float[,] texture,
-            int initX, int initY, int length, float baseGrey, float greyDiff, int patternIndex) {
+        private void GenerateSubBlock(Random random, Color[,] block, int blockX, int blockY, int patternIndex,
+            int initX, int initY, int size, float baseGrey, float greyDiff) {
 
             int[,] pattern = Patterns[patternIndex];
-            int[] greying = GenerateGreying(random); // Gets a random greying with no restrictions
-            float greyVar = greyDiff / greyNumber; // Grey variation between two consecutive greys
+            int[] greying = GenerateGreying(random);
 
-            int cellLength = length / PATTERN_LENGTH;
+            float greyVar = greyDiff / greyNumber;
+            int cellLength = size / PATTERN_LENGTH;
 
             for (int i = 0; i < PATTERN_LENGTH; i++) {
 
                 for (int j = 0; j < PATTERN_LENGTH; j++) {
 
-                    // Gets the base grey for this cell
-                    float cellBaseGrey = baseGrey + greyDiff / 2 - greyVar * (0.5f + greying[pattern[i, j]]);
+                    float grey = baseGrey + greyDiff / 2 - greyVar * (0.5f + greying[pattern[i, j]]);
 
-                    if (cellLength > pixelSize) {
+                    if (cellLength <= pixelSize) {
 
-                        // Fills this cell with a new pattern
-                        FillSquare(random, texture,
-                            initX + i * cellLength, initY + j * cellLength, cellLength,
-                            cellBaseGrey, greyDiff / (greyNumber * greyDiffRed),
-                            random.Next(NUM_PATTERNS));
+                        int imageInitX = blockX * block.GetLength(0) + initX;
+                        int imageInitY = blockY * block.GetLength(1) + initY;
+                        float[] pairLocation = GetPairLocation(pattern, i, j);
+
+                        float hue = hue1 ?? 0f;
+                        float sat = sat1 ?? 0f;
+
+                        if (hueGradient) {
+
+                            float progress;
+                            if ((bool) hueGrad) progress = (imageInitX + pairLocation[0] * cellLength) / width;
+                            else progress = (imageInitY + pairLocation[1] * cellLength) / height;
+                            hue = (hueBase + progress * hueDiff + 360) % 360;
+                            sat = sat1 ?? 0.5f;
+                        }
+
+                        if (satGradient) {
+
+                            float progress;
+                            if ((bool) satGrad) progress = (imageInitX + pairLocation[0] * cellLength) / width;
+                            else progress = (imageInitY + pairLocation[1] * cellLength) / height;
+                            sat = satBase + progress * satDiff;
+                        }
+
+                        for (int m = 0; m < cellLength; m++) {
+
+                            for (int n = 0; n < cellLength; n++) {
+
+                                try {
+
+                                    block[initX + i * cellLength + m, initY + j * cellLength + n] =
+                                        ColorFromHSB(hue, sat, grey);
+                                }
+                                catch (ArgumentException) {
+
+                                    throw new Exception("Weird parameters");
+                                }
+                            }
+                        }
                     }
                     else {
 
-                        // Paints this cell pixels with the base grey
-                        float grey = cellBaseGrey;
-
-                        for (int m = 0; m < cellLength; m++)
-                            for (int n = 0; n < cellLength; n++)
-                                texture[initX + i * cellLength + m, initY + j * cellLength + n] = grey;
+                        GenerateSubBlock(random, block, blockX, blockY, random.Next(NUM_PATTERNS),
+                            initX + i * cellLength, initY + j * cellLength, cellLength,
+                            grey, greyDiff / (greyNumber * greyDiffRed));
                     }
                 }
             }
@@ -304,9 +309,14 @@ namespace Agrock {
             return greying;
         }
 
-        public static double Clamp(double value, double min, double max) {
+        public static float[] GetPairLocation(int[,] pattern, int i, int j) {
 
-            return Math.Min(max, Math.Max(min, value));
+            int value = pattern[i, j];
+            if (i < PATTERN_LENGTH - 1 && pattern[i + 1, j] == value) return new []{i + 0.5f, j};
+            if (i > 0 && pattern[i - 1, j] == value) return new []{i - 0.5f, j};
+            if (j < PATTERN_LENGTH - 1 && pattern[i, j + 1] == value) return new []{i, j + 0.5f};
+            if (j > 0 && pattern[i, j - 1] == value) return new []{i, j - 0.5f};
+            return null;
         }
 
         /// <summary>
