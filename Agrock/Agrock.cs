@@ -9,20 +9,22 @@ namespace Agrock {
 
     public class Agrock {
 
-        public const string ARG_WIDTH = "-w";
-        public const string ARG_HEIGHT = "-h";
-        public const string ARG_PIXEL_SIZE = "-ps";
-        public const string ARG_RECURSION = "-rec";
-        public const string ARG_GREY_NUMBER = "-gn";
-        public const string ARG_GREY_BASE_DIFF = "-gbd";
-        public const string ARG_GREY_DIFF_RED = "-gdr";
-        public const string ARG_HUE_1 = "-h1";
-        public const string ARG_HUE_2 = "-h2";
-        public const string ARG_HUE_GRAD = "-hg";
-        public const string ARG_SAT_1 = "-s1";
-        public const string ARG_SAT_2 = "-s2";
-        public const string ARG_SAT_GRAD = "-sg";
-        public const string ARG_RANDOM = "--random";
+        private const string ARG_WIDTH = "-w";
+        private const string ARG_HEIGHT = "-h";
+        private const string ARG_PIXEL_SIZE = "-ps";
+        private const string ARG_RECURSION = "-rec";
+        private const string ARG_GREY_NUMBER = "-gn";
+        private const string ARG_GREY_BASE_DIFF = "-gbd";
+        private const string ARG_GREY_DIFF_RED = "-gdr";
+        private const string ARG_HUE_1 = "-h1";
+        private const string ARG_HUE_2 = "-h2";
+        private const string ARG_HUE_GRAD = "-hg";
+        private const string ARG_SAT_1 = "-s1";
+        private const string ARG_SAT_2 = "-s2";
+        private const string ARG_SAT_GRAD = "-sg";
+        private const string ARG_IMAGE = "-img";
+        private const string ARG_IMAGE_STR = "-is";
+        private const string ARG_RANDOM = "--random";
 
         private const int NUM_PATTERNS = 36;
         private const int PATTERN_LENGTH = 4;
@@ -43,6 +45,8 @@ namespace Agrock {
         private float? sat1;
         private float? sat2;
         private bool? satGrad;
+        private string sourceImageName;
+        private float? sourceImageStrength;
 
         private readonly bool hueGradient;
         private readonly bool satGradient;
@@ -50,6 +54,7 @@ namespace Agrock {
         private readonly float hueDiff;
         private readonly float satBase;
         private readonly float satDiff;
+        private readonly Bitmap sourceImage;
 
         private string getArgList() {
 
@@ -66,6 +71,8 @@ namespace Agrock {
                    + " " + ARG_SAT_1 + " " + sat1
                    + " " + ARG_SAT_2 + " " + sat2
                    + " " + ARG_SAT_GRAD + " " + satGrad
+                   + " " + ARG_IMAGE + " " + sourceImageName
+                   + " " + ARG_IMAGE_STR + " " + sourceImageStrength
                    + " " + ARG_RANDOM;
         }
 
@@ -90,7 +97,10 @@ namespace Agrock {
                 ARG_SAT_2, "0.5",
                 ARG_SAT_GRAD, "false",
 
-                ARG_RANDOM
+                ARG_IMAGE, "source4.jpg",
+                ARG_IMAGE_STR, "1.0",
+
+//                ARG_RANDOM
             };
 
             new Agrock(args);
@@ -126,6 +136,9 @@ namespace Agrock {
             if (param.ContainsKey(ARG_SAT_1)) sat1 = float.Parse(param[ARG_SAT_1]);
             if (param.ContainsKey(ARG_SAT_2)) sat2 = float.Parse(param[ARG_SAT_2]);
             if (param.ContainsKey(ARG_SAT_GRAD)) satGrad = bool.Parse(param[ARG_SAT_GRAD]);
+
+            if (param.ContainsKey(ARG_IMAGE)) sourceImageName = param[ARG_IMAGE];
+            if (param.ContainsKey(ARG_IMAGE_STR)) sourceImageStrength = float.Parse(param[ARG_IMAGE_STR]);
         }
 
         private void SetRandomParams() {
@@ -151,6 +164,13 @@ namespace Agrock {
         public Agrock(string[] args) {
 
             ParseArgs(args);
+            
+            if (sourceImageName != null) {
+                
+                sourceImage = new Bitmap(Image.FromFile(sourceImageName));
+                width = sourceImage.Width;
+                height = sourceImage.Height;
+            }
 
             int blockSize = (int) Math.Pow(PATTERN_LENGTH, recursion) * pixelSize;
             Size gridSize = new Size((width - 1) / blockSize + 1, (height - 1) / blockSize + 1);
@@ -255,22 +275,38 @@ namespace Agrock {
 
                         float hue = hue1 ?? 0f;
                         float sat = sat1 ?? 0f;
+                        int alpha = 255;
 
-                        if (hueGradient) {
+                        if (sourceImage != null) {
 
-                            float progress;
-                            if ((bool) hueGrad) progress = (imageInitX + pairLocation[0] * cellLength) / width;
-                            else progress = (imageInitY + pairLocation[1] * cellLength) / height;
-                            hue = (hueBase + progress * hueDiff + 360) % 360;
-                            sat = sat1 ?? 0.5f;
+                            Color color = GetMeanColor(sourceImage, cellLength,
+                                (int) Clamp(imageInitX + pairLocation[0] * cellLength, 0, width - 1),
+                                (int) Clamp(imageInitY + pairLocation[1] * cellLength, 0, height - 1));
+
+                            alpha = color.A;
+                            hue = color.GetHue();
+                            sat = color.GetSaturation();
+                            grey = (1 - (float) sourceImageStrength) * grey +
+                                   (float) sourceImageStrength * color.GetBrightness();
                         }
+                        else {
 
-                        if (satGradient) {
+                            if (hueGradient) {
 
-                            float progress;
-                            if ((bool) satGrad) progress = (imageInitX + pairLocation[0] * cellLength) / width;
-                            else progress = (imageInitY + pairLocation[1] * cellLength) / height;
-                            sat = satBase + progress * satDiff;
+                                float progress;
+                                if ((bool) hueGrad) progress = (imageInitX + pairLocation[0] * cellLength) / width;
+                                else progress = (imageInitY + pairLocation[1] * cellLength) / height;
+                                hue = (hueBase + progress * hueDiff + 360) % 360;
+                                sat = sat1 ?? 0.5f;
+                            }
+
+                            if (satGradient) {
+
+                                float progress;
+                                if ((bool) satGrad) progress = (imageInitX + pairLocation[0] * cellLength) / width;
+                                else progress = (imageInitY + pairLocation[1] * cellLength) / height;
+                                sat = satBase + progress * satDiff;
+                            }
                         }
 
                         for (int m = 0; m < cellLength; m++) {
@@ -280,7 +316,7 @@ namespace Agrock {
                                 try {
 
                                     block[initX + i * cellLength + m, initY + j * cellLength + n] =
-                                        ColorFromHSB(hue, sat, grey);
+                                        ColorFromHSB(alpha, hue, sat, grey);
                                 }
                                 catch (ArgumentException) {
 
@@ -319,14 +355,58 @@ namespace Agrock {
             return null;
         }
 
+
+        public static Color GetMeanColor(Bitmap image, float radius, int centerX, int centerY) {
+
+            int intRadius = (int) Math.Ceiling(radius);
+            int totalPixels = 0;
+            int totalAlpha = 0;
+            int totalRed = 0;
+            int totalGreen = 0;
+            int totalBlue = 0;
+            
+            for (int i = -intRadius; i <= intRadius; i++) {
+
+                for (int j = -intRadius; j <= intRadius; j++) {
+
+                    if (Math.Sqrt(Math.Pow(i, 2) + Math.Pow(j, 2)) <= radius) {
+
+                        int x = centerX + i;
+                        int y = centerY + j;
+
+                        if (x >= 0 && x < image.Width && y >= 0 && y < image.Height) {
+
+                            Color color = image.GetPixel(x, y);
+                            totalPixels++;
+                            totalAlpha += color.A;
+                            totalRed += color.R;
+                            totalGreen += color.G;
+                            totalBlue += color.B;
+                        }
+                    }
+                }
+            }
+
+            return Color.FromArgb(
+                (int) Math.Round((double) totalAlpha / totalPixels),
+                (int) Math.Round((double) totalRed / totalPixels),
+                (int) Math.Round((double) totalGreen / totalPixels),
+                (int) Math.Round((double) totalBlue / totalPixels));
+        }
+        
+        public static double Clamp(double value, double min, double max) {
+            
+            return (value < min) ? min : (value > max) ? max : value;
+        }
+
         /// <summary>
         /// Converts the representation of a color from HSB to RGB.
         /// Original code by Chris Jackson:
         /// https://blogs.msdn.microsoft.com/cjacks/2006/04/12/converting-from-hsb-to-rgb-in-net/
         /// </summary>
-        private static Color ColorFromHSB(float h, float s, float b) {
+        private static Color ColorFromHSB(int a, float h, float s, float b) {
 
-            if (0 == s) return Color.FromArgb(
+            if (0 == s) return Color.FromArgb(a,
                 Convert.ToInt32(b * 255), Convert.ToInt32(b * 255), Convert.ToInt32(b * 255));
 
             float fMax, fMid, fMin;
@@ -359,17 +439,17 @@ namespace Agrock {
             switch (iSextant) {
 
                 case 1:
-                    return Color.FromArgb(iMid, iMax, iMin);
+                    return Color.FromArgb(a, iMid, iMax, iMin);
                 case 2:
-                    return Color.FromArgb(iMin, iMax, iMid);
+                    return Color.FromArgb(a, iMin, iMax, iMid);
                 case 3:
-                    return Color.FromArgb(iMin, iMid, iMax);
+                    return Color.FromArgb(a, iMin, iMid, iMax);
                 case 4:
-                    return Color.FromArgb(iMid, iMin, iMax);
+                    return Color.FromArgb(a, iMid, iMin, iMax);
                 case 5:
-                    return Color.FromArgb(iMax, iMin, iMid);
+                    return Color.FromArgb(a, iMax, iMin, iMid);
                 default:
-                    return Color.FromArgb(iMax, iMid, iMin);
+                    return Color.FromArgb(a, iMax, iMid, iMin);
             }
         }
 
